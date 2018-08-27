@@ -1,6 +1,6 @@
 var projectionMatrix;
 
-var shaderProgram, shaderVertexPositionAttribute, shaderVertexColorAttribute, 
+var shaderProgram, shaderVertexPositionAttribute, shaderVertexColorAttribute,
     shaderProjectionMatrixUniform, shaderModelViewMatrixUniform;
 
 var duration = 5000; // ms
@@ -8,7 +8,7 @@ var duration = 5000; // ms
 // Attributes: Input variables used in the vertex shader. Since the vertex shader is called on each vertex, these will be different every time the vertex shader is invoked.
 // Uniforms: Input variables for both the vertex and fragment shaders. These do not change values from vertex to vertex.
 // Varyings: Used for passing data from the vertex shader to the fragment shader. Represent information for which the shader can output different value for each vertex.
-var vertexShaderSource =    
+var vertexShaderSource =
     "    attribute vec3 vertexPos;\n" +
     "    attribute vec4 vertexColor;\n" +
     "    uniform mat4 modelViewMatrix;\n" +
@@ -27,7 +27,7 @@ var vertexShaderSource =
 // - highp for vertex positions,
 // - mediump for texture coordinates,
 // - lowp for colors.
-var fragmentShaderSource = 
+var fragmentShaderSource =
     "    precision lowp float;\n" +
     "    varying vec4 vColor;\n" +
     "    void main(void) {\n" +
@@ -39,10 +39,10 @@ function initWebGL(canvas)
     var gl = null;
     var msg = "Your browser does not support WebGL, " +
         "or it is not enabled by default.";
-    try 
+    try
     {
         gl = canvas.getContext("experimental-webgl");
-    } 
+    }
     catch (e)
     {
         msg = "Error creating WebGL Context!: " + e.toString();
@@ -54,7 +54,7 @@ function initWebGL(canvas)
         throw new Error(msg);
     }
 
-    return gl;        
+    return gl;
  }
 
 function initViewport(gl, canvas)
@@ -66,13 +66,205 @@ function initGL(canvas)
 {
     // Create a project matrix with 45 degree field of view
     projectionMatrix = mat4.create();
-    mat4.perspective(projectionMatrix, Math.PI / 4, canvas.width / canvas.height, 1, 10000);
+    mat4.perspective(projectionMatrix, Math.PI / 4, canvas.width / canvas.height, 1, 100);
+    mat4.translate(projectionMatrix, projectionMatrix, [0, 0, -5]);
 }
 
-// TO DO: Create the functions for each of the figures.
+const faceColors =
+[
+    [1.0, 1.0, 0.0, 1.0],
+    [0.2, 1.0, 0.7, 1.0],
+    [0.0, 0.3, 1.0, 1.0],
+    [0.0, 1.0, 0.5, 1.0],
+    [1.0, 0.2, 0.0, 1.0],
+    [0.3, 1.0, 0.8, 1.0],
+    [0.5, 0.5, 0.6, 1.0],
+    [0.1, 0.0, 1.0, 1.0]
+];
 
-function createShader(gl, str, type)
+function createPyramid(gl, translation, rotationAxis)
 {
+    const top_v = [0.0, 1.0, 0.0]
+    const pent_v1 = [0.0, -0.5, -0.5]
+    const pent_v2 = [-0.5, -0.5, -0.2]
+    const pent_v3 = [-0.3, -0.5, 0.5]
+    const pent_v4 = [-0.3, -0.5, 0.5]
+    const pent_v5 = [0.5, -0.5, -0.2]
+
+    let verts =
+    [
+
+       ...pent_v1, ...pent_v2, ...pent_v3, ...pent_v4, ...pent_v5,
+
+       ...pent_v1, ...pent_v2, ...top_v,
+       ...pent_v2, ...pent_v3, ...top_v,
+       ...pent_v3, ...pent_v4, ...top_v,
+       ...pent_v4, ...pent_v5, ...top_v,
+       ...pent_v5, ...pent_v1, ...top_v,
+    ];
+
+    const faceLengths = [5, 3, 3, 3, 3, 3];
+
+    const pyramidIndices =
+    [
+        0, 1, 2,  0, 2, 3,  0, 3, 4,
+        5, 6, 7,
+        8, 9, 10,
+        11, 12, 13,
+        14, 15, 16,
+        17, 18, 19
+    ];
+
+    let vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+
+    let vertexColors = [];
+    for (let i in faceLengths)
+    {
+        let color = faceColors[i];
+        for (let j=0; j < faceLengths[i]; j++)
+        {
+            vertexColors = vertexColors.concat(color);
+        }
+    }
+
+    var colorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexColors), gl.STATIC_DRAW);
+
+    var indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(pyramidIndices), gl.STATIC_DRAW);
+
+    figure =
+    {
+        buffer:vertexBuffer, colorBuffer:colorBuffer, indices:indexBuffer,
+        vertSize:3, nVerts:verts.length, colorSize:4, nColors: vertexColors.length, nIndices: pyramidIndices.length,
+        primtype:gl.TRIANGLES, modelViewMatrix: mat4.create(), currentTime : Date.now()
+    };
+
+    let pyramid = figure;
+
+    mat4.translate(pyramid.modelViewMatrix, pyramid.modelViewMatrix, translation);
+
+    pyramid.update = function()
+    {
+        var now = Date.now();
+        var deltat = now - this.currentTime;
+        this.currentTime = now;
+        var fract = deltat / duration;
+        var angle = Math.PI * 2 * fract;
+
+        mat4.rotate(this.modelViewMatrix, this.modelViewMatrix, angle, rotationAxis);
+    };
+
+    return pyramid;
+}
+
+function createOctahedron(gl, translation, rotationAxis)
+{
+    const v1 = [0, 0, 0];
+    const v2 = [0, 0.0, 1.5];
+    const v3 = [1.5, 0.0, 1.5];
+    const v4 = [1.5, 0, 0.0];
+    const v5 = [0.75, 1,  0.75];
+    const v6 = [0.75, -1,  0.75];
+
+    const verts =
+    [
+       ...v1, ...v2, ...v5,
+       ...v1, ...v2, ...v6,
+       ...v2, ...v3, ...v5,
+       ...v2, ...v3, ...v6,
+       ...v3, ...v4, ...v5,
+       ...v3, ...v4, ...v6,
+       ...v4, ...v1, ...v5,
+       ...v4, ...v1, ...v6,
+    ];
+
+    var faceLengths = Array(8).fill(3);
+
+    var octahedronIndices =
+    [
+        0, 1, 2,
+        3, 4, 5,
+        6, 7, 8,
+        9, 10, 11,
+        12, 13, 14,
+        15, 16, 17,
+        18, 19, 20,
+        21, 22, 23
+    ];
+
+    let vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+
+    let vertexColors = [];
+    for (let i in faceLengths)
+    {
+        let color = faceColors[i];
+        for (let j=0; j < faceLengths[i]; j++)
+        {
+            vertexColors = vertexColors.concat(color);
+        }
+    }
+
+    var colorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexColors), gl.STATIC_DRAW);
+
+    var indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(octahedronIndices), gl.STATIC_DRAW);
+
+    figure =
+    {
+        buffer:vertexBuffer, colorBuffer:colorBuffer, indices:indexBuffer,
+        vertSize:3, nVerts:verts.length, colorSize:4, nColors: vertexColors.length, nIndices: octahedronIndices.length,
+        primtype:gl.TRIANGLES, modelViewMatrix: mat4.create(), currentTime : Date.now()
+    };
+
+    let octahedron = figure;
+
+    mat4.translate(octahedron.modelViewMatrix, octahedron.modelViewMatrix, translation);
+
+    let goDown = false;
+    octahedron.update = function()
+    {
+        var now = Date.now();
+        var deltat = now - this.currentTime;
+        this.currentTime = now;
+        var fract = deltat / duration;
+        var angle = Math.PI * 2 * fract;
+
+        mat4.rotate(this.modelViewMatrix, this.modelViewMatrix, angle, rotationAxis);
+
+        if(this.modelViewMatrix[13] > 2)
+        {
+            goDown = true;
+        }
+        if(this.modelViewMatrix[13] < -2.5)
+        {
+            goDown = false;
+        }
+
+        if(goDown)
+        {
+            mat4.translate(this.modelViewMatrix, this.modelViewMatrix, [0, -0.05, 0]);
+        } else {
+            mat4.translate(this.modelViewMatrix, this.modelViewMatrix, [0, 0.05, 0]);
+        }
+    };
+
+    return octahedron;
+}
+
+
+
+
+function createShader(gl, str, type) {
     var shader;
     if (type == "fragment") {
         shader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -93,8 +285,7 @@ function createShader(gl, str, type)
     return shader;
 }
 
-function initShader(gl)
-{
+function initShader(gl) {
     // load and compile the fragment and vertex shader
     var fragmentShader = createShader(gl, fragmentShaderSource, "fragment");
     var vertexShader = createShader(gl, vertexShaderSource, "vertex");
@@ -111,7 +302,7 @@ function initShader(gl)
 
     shaderVertexColorAttribute = gl.getAttribLocation(shaderProgram, "vertexColor");
     gl.enableVertexAttribArray(shaderVertexColorAttribute);
-    
+
     shaderProjectionMatrixUniform = gl.getUniformLocation(shaderProgram, "projectionMatrix");
     shaderModelViewMatrixUniform = gl.getUniformLocation(shaderProgram, "modelViewMatrix");
 
@@ -120,8 +311,7 @@ function initShader(gl)
     }
 }
 
-function draw(gl, objs) 
-{
+function draw(gl, objs) {
     // clear the background (with black)
     gl.clearColor(0.1, 0.1, 0.1, 1.0);
     gl.enable(gl.DEPTH_TEST);
@@ -140,7 +330,7 @@ function draw(gl, objs)
 
         gl.bindBuffer(gl.ARRAY_BUFFER, obj.colorBuffer);
         gl.vertexAttribPointer(shaderVertexColorAttribute, obj.colorSize, gl.FLOAT, false, 0, 0);
-        
+
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.indices);
 
         gl.uniformMatrix4fv(shaderProjectionMatrixUniform, false, projectionMatrix);
@@ -156,8 +346,7 @@ function draw(gl, objs)
     }
 }
 
-function run(gl, objs) 
-{
+function run(gl, objs)  {
     // The window.requestAnimationFrame() method tells the browser that you wish to perform an animation and requests that the browser call a specified function to update an animation before the next repaint. The method takes a callback as an argument to be invoked before the repaint.
     requestAnimationFrame(function() { run(gl, objs); });
     draw(gl, objs);
