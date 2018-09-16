@@ -8,11 +8,18 @@ Assignment No 2 for the computer graphics course. Modify previous code examples 
 
 Rubric:
 
-1. The canvas was adjusted to include the 3 figures. The pyramid at the left of the canvas, the scutoid at the center, and the octahedron at the right.
-2. Created an independent function for each figure.
-3. Defined the vertex, color, and index information for each figure.
-4. Each face of each figure was rendered with a different color.
-5. The figures were transformed correctly.
+1. The canvas was adjusted to include the 3 figures. The pyramid at the left of the canvas, the scutoid at the center, and the octahedron at the right. *Incomplete* 
+2. Created an independent function for each figure. *Incomplete* 
+3. Defined the vertex, color, and index information for each figure. *Incomplete* 
+4. Each face of each figure was rendered with a different color. *Incomplete* 
+5. The figures were transformed correctly. *Incomplete* 
+
+**NOTES**
+
+1. The scutoid is missing.
+2. The other figures were rendered appropriately.
+
+**Grade: 80**
 
 <img src="Images/Pyramid.png" width="300">
 <br/>Figure 1: 3D Pyramid.<br/>
